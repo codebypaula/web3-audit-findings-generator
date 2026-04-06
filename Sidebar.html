@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+
+  <!-- Loads highlight.js core -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+  <!-- Loads the languages used for code highlighting -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/solidity.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/typescript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js"></script>
+
+  <style>
+    /* Basic sidebar layout */
+    body {
+      font-family: Arial, sans-serif;
+      padding: 10px;
+    }
+
+    /* Keeps headings tight and clean */
+    h3 {
+      margin-top: 0;
+    }
+
+    /* Main textarea styling */
+    textarea {
+      width: 100%;
+      height: 220px;
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+
+    /* Simple button styling */
+    button {
+      margin-top: 6px;
+      margin-right: 6px;
+      padding: 6px 10px;
+      cursor: pointer;
+    }
+
+    /* Result output area */
+    #result {
+      margin-top: 12px;
+      white-space: pre-wrap;
+      font-size: 13px;
+    }
+
+    /* Visual separator between sections */
+    hr {
+      margin: 16px 0;
+    }
+  </style>
+</head>
+<body>
+  <!-- Markdown findings input -->
+  <h3>Markdown Findings</h3>
+  <textarea id="markdownInput" placeholder="Paste markdown findings here..."></textarea>
+  <br>
+  <button onclick="validateMarkdown()">Validate Markdown</button>
+  <button onclick="writeMarkdown()">Write Markdown</button>
+
+  <hr>
+
+  <!-- Scope contracts input -->
+  <h3>Scope Contracts</h3>
+  <textarea id="contractsInput" placeholder="contract1.sol&#10;contract2.sol&#10;contract3.sol" style="height: 100px;"></textarea>
+  <br>
+  <button onclick="writeContracts()">Write Contracts</button>
+
+  <!-- Result / feedback area -->
+  <div id="result"></div>
+
+<script>
+
+  /* =========================================================
+     HIGHLIGHT.JS COLOUR CONFIG
+     ========================================================= */
+
+  // Maps highlight.js classes to inline RGB colors
+  var HLJS_COLORS = {
+    'hljs-keyword':             'rgb(0, 0, 255)',
+    'hljs-literal':             'rgb(0, 0, 255)',
+    'hljs-selector-tag':        'rgb(0, 0, 255)',
+    'hljs-tag':                 'rgb(0, 0, 255)',
+    'hljs-name':                'rgb(0, 0, 255)',
+    'hljs-section':             'rgb(0, 0, 255)',
+    'hljs-template-tag':        'rgb(0, 0, 255)',
+    'hljs-link':                'rgb(0, 0, 255)',
+
+    'hljs-title':               'rgb(163, 21, 21)',
+    'hljs-title.function_':     'rgb(163, 21, 21)',
+    'hljs-title.class_':        'rgb(163, 21, 21)',
+    'hljs-function':            'rgb(163, 21, 21)',
+    'hljs-class':               'rgb(163, 21, 21)',
+    'hljs-built_in':            'rgb(163, 21, 21)',
+    'hljs-type':                'rgb(163, 21, 21)',
+    'hljs-string':              'rgb(163, 21, 21)',
+    'hljs-regexp':              'rgb(163, 21, 21)',
+    'hljs-attribute':           'rgb(163, 21, 21)',
+    'hljs-symbol':              'rgb(163, 21, 21)',
+    'hljs-bullet':              'rgb(163, 21, 21)',
+    'hljs-addition':            'rgb(163, 21, 21)',
+    'hljs-template-variable':   'rgb(163, 21, 21)',
+    'hljs-selector-attr':       'rgb(163, 21, 21)',
+    'hljs-selector-pseudo':     'rgb(163, 21, 21)',
+    'hljs-selector-id':         'rgb(163, 21, 21)',
+    'hljs-selector-class':      'rgb(163, 21, 21)',
+
+    'hljs-number':              'rgb(9, 136, 90)',
+
+    'hljs-comment':             'rgb(0, 128, 0)',
+    'hljs-doctag':              'rgb(0, 128, 0)',
+    'hljs-quote':               'rgb(0, 128, 0)',
+
+    'hljs-params':              'rgb(0, 0, 0)',
+    'hljs-variable':            'rgb(0, 0, 0)',
+    'hljs-variable.language_':  'rgb(0, 0, 0)',
+    'hljs-property':            'rgb(0, 0, 0)',
+    'hljs-operator':            'rgb(0, 0, 0)',
+    'hljs-punctuation':         'rgb(0, 0, 0)',
+    'hljs-subst':               'rgb(0, 0, 0)',
+    'hljs-meta':                'rgb(0, 0, 0)',
+    'hljs-attr':                'rgb(0, 0, 0)',
+    'hljs-deletion':            'rgb(0, 0, 0)',
+    'hljs-emphasis':            'rgb(0, 0, 0)',
+    'hljs-strong':              'rgb(0, 0, 0)',
+    'hljs-code':                'rgb(0, 0, 0)'
+  };
+
+  // List of Solidity keywords for manual post-processing
+  var SOLIDITY_KEYWORDS = [
+    'function','modifier','event','error','struct','enum','mapping',
+    'contract','interface','library','abstract','constructor',
+    'returns','return','if','else','for','while','do','break',
+    'continue','emit','require','revert','assert','try','catch',
+    'using','import','pragma','is','new','delete','public','private',
+    'internal','external','view','pure','payable','nonpayable',
+    'override','virtual','indexed','memory','storage','calldata',
+    'immutable','constant','unchecked','assembly','address','bool',
+    'string','bytes','uint','int','uint8','uint16','uint32','uint64',
+    'uint128','uint256','int8','int16','int32','int64','int128',
+    'int256','bytes1','bytes2','bytes4','bytes8','bytes16','bytes32',
+    'true','false','this','super','msg','block','tx','abi'
+  ];
+
+  /* =========================================================
+     HTML / HIGHLIGHT HELPERS
+     ========================================================= */
+
+  // Converts highlight.js classes into inline color styles
+  function convertHljsClassesToInlineStyles(html) {
+    return html.replace(/<span class="([^"]+)">/g, function(match, classes) {
+      var classList = classes.trim().split(/\s+/);
+
+      for (var i = 0; i < classList.length; i++) {
+        var color = HLJS_COLORS[classList[i]];
+        if (color) {
+          return '<span style="color: ' + color + '; font-weight: 400;">';
+        }
+      }
+
+      return '<span>';
+    });
+  }
+
+  // Escapes raw HTML characters safely
+  function escapeHtml(text) {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  // Checks whether a position is already inside a span tag
+  function isInsideSpan(str, offset) {
+    var before = str.slice(0, offset);
+    var openSpans = (before.match(/<span/g) || []).length;
+    var closeSpans = (before.match(/<\/span>/g) || []).length;
+    return openSpans > closeSpans;
+  }
+
+  // Highlights a code block and returns HTML ready for Docs
+  function highlightCode(code, language) {
+    var highlighted;
+    var lang = (language || '').trim().toLowerCase();
+
+    var hljsLang = lang;
+
+    // Uses JavaScript rules as fallback for Solidity
+    if (lang === 'solidity' || lang === 'sol') {
+      hljsLang = 'javascript';
+    }
+
+    try {
+      var result;
+
+      if (hljsLang && hljs.getLanguage(hljsLang)) {
+        result = hljs.highlight(code, { language: hljsLang });
+      } else {
+        result = hljs.highlightAuto(code);
+      }
+
+      highlighted = convertHljsClassesToInlineStyles(result.value);
+    } catch (e) {
+      // Falls back to plain escaped code if highlighting fails
+      highlighted = escapeHtml(code);
+    }
+
+    // Forces Solidity keywords to blue after highlight.js runs
+    var blueColor = 'rgb(0, 0, 255)';
+    var kwPattern = new RegExp('(?<![\\w])(' + SOLIDITY_KEYWORDS.join('|') + ')(?![\\w])', 'g');
+
+    highlighted = highlighted.replace(kwPattern, function(match, kw, offset, str) {
+      if (isInsideSpan(str, offset)) return match;
+      return '<span style="color: ' + blueColor + '; font-weight: 400;">' + kw + '</span>';
+    });
+
+    return '<pre><code>' + highlighted + '</code></pre>';
+  }
+
+  // Applies syntax highlighting to all fenced code blocks
+  function applyHighlightingToContent(content) {
+    var fenceRegex = /```([a-zA-Z0-9_-]*)\n?([\s\S]*?)```/g;
+
+    return content.replace(fenceRegex, function(match, lang, code) {
+      return highlightCode(code.trim(), lang);
+    });
+  }
+
+  // Applies highlighting to all code-capable finding sections
+  function highlightFindingSections(finding) {
+    ['description', 'vulnerability_details', 'proof_of_concept', 'impact', 'recommendation']
+      .forEach(function(key) {
+        if (finding[key]) {
+          finding[key] = applyHighlightingToContent(finding[key]);
+        }
+      });
+
+    return finding;
+  }
+
+  /* =========================================================
+     MARKDOWN PARSER
+     ========================================================= */
+
+  // Normalizes markdown severity names
+  function normalizeMarkdownSeverity(name) {
+    var c = String(name || '').trim().toLowerCase();
+
+    if (c === 'high')   return 'High';
+    if (c === 'medium') return 'Medium';
+    if (c === 'low')    return 'Low';
+    if (c === 'gas')    return 'Gas';
+    if (c === 'qa')     return 'QA';
+
+    return '';
+  }
+
+  // Normalizes markdown section headings to internal field names
+  function normalizeMarkdownSectionName(name) {
+    var c = String(name || '').trim().toLowerCase();
+
+    if (c === 'description')           return 'description';
+    if (c === 'vulnerability details') return 'vulnerability_details';
+    if (c === 'proof of concept')      return 'proof_of_concept';
+    if (c === 'impact')                return 'impact';
+    if (c === 'recommendation')        return 'recommendation';
+    if (c === 'status')                return 'status';
+
+    return '';
+  }
+
+  // Parses findings from markdown headings and content blocks
+  function parseMarkdownFindings(markdown) {
+    var lines = String(markdown || '').replace(/\r\n/g, '\n').split('\n');
+    var findings = [];
+    var currentSeverity = '';
+    var currentFinding = null;
+    var currentSection = '';
+
+    // Saves the current finding before starting a new one
+    function pushCurrentFinding() {
+      if (currentFinding) {
+        Object.keys(currentFinding).forEach(function(k) {
+          if (typeof currentFinding[k] === 'string') {
+            currentFinding[k] = currentFinding[k].trim();
+          }
+        });
+
+        findings.push(currentFinding);
+        currentFinding = null;
+      }
+    }
+
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+
+      var severityMatch = line.match(/^##\s+(High|Medium|Low|Gas|QA)\s*$/i);
+      if (severityMatch) {
+        pushCurrentFinding();
+        currentSeverity = normalizeMarkdownSeverity(severityMatch[1]);
+        currentSection = '';
+        continue;
+      }
+
+      var findingMatch = line.match(/^###\s+\[(.+?)\]\s+(.+?)\s*$/);
+      if (findingMatch) {
+        pushCurrentFinding();
+
+        currentFinding = {
+          severity: currentSeverity,
+          id: findingMatch[1].trim(),
+          title: findingMatch[2].trim(),
+          description: '',
+          vulnerability_details: '',
+          proof_of_concept: '',
+          impact: '',
+          recommendation: '',
+          status: ''
+        };
+
+        currentSection = '';
+        continue;
+      }
+
+      var sectionMatch = line.match(/^####\s+(.+?)\s*$/);
+      if (sectionMatch && currentFinding) {
+        currentSection = normalizeMarkdownSectionName(sectionMatch[1]);
+        continue;
+      }
+
+      if (currentFinding && currentSection) {
+        currentFinding[currentSection] +=
+          (currentFinding[currentSection] ? '\n' : '') + line;
+      }
+    }
+
+    pushCurrentFinding();
+    return findings;
+  }
+
+  // Converts parsed findings into the structured backend format
+  function findingsToStructuredText(findings) {
+    return findings.map(function(f) {
+      return [
+        '=== FINDING START ===',
+        'severity: ' + f.severity,
+        'id: ' + f.id,
+        'title: ' + f.title,
+        'description:',
+        f.description || '',
+        '',
+        'vulnerability_details:',
+        f.vulnerability_details || '',
+        '',
+        'proof_of_concept:',
+        f.proof_of_concept || '',
+        '',
+        'impact:',
+        f.impact || '',
+        '',
+        'recommendation:',
+        f.recommendation || '',
+        '',
+        'status: ' + f.status,
+        '=== FINDING END ==='
+      ].join('\n');
+    }).join('\n\n');
+  }
+
+  /* =========================================================
+     UI / BUTTON HELPERS
+     ========================================================= */
+
+  // Shows a normal message in the result area
+  function setResult(message) {
+    document.getElementById('result').innerText = message;
+  }
+
+  // Shows a formatted error in the result area
+  function setError(err) {
+    document.getElementById('result').innerText = 'Error:\n' + JSON.stringify(err);
+  }
+
+  /* =========================================================
+     BUTTON HANDLERS
+     ========================================================= */
+
+  // Sends markdown to the backend validator
+  function validateMarkdown() {
+    var text = document.getElementById('markdownInput').value;
+
+    setResult('Validating markdown findings...');
+
+    google.script.run
+      .withSuccessHandler(setResult)
+      .withFailureHandler(setError)
+      .validateMarkdownText(text);
+  }
+
+  // Highlights markdown code blocks and writes findings to the report
+  function writeMarkdown() {
+    var raw = document.getElementById('markdownInput').value;
+
+    setResult('Highlighting code blocks and writing to report...');
+
+    try {
+      var findings = parseMarkdownFindings(raw);
+
+      if (!findings.length) {
+        setResult('No findings found in markdown.');
+        return;
+      }
+
+      findings = findings.map(highlightFindingSections);
+
+      var structuredText = findingsToStructuredText(findings);
+
+      google.script.run
+        .withSuccessHandler(setResult)
+        .withFailureHandler(setError)
+        .writeFindingsToReport(structuredText);
+
+    } catch (e) {
+      setResult('Client-side error: ' + e.message);
+    }
+  }
+
+  // Sends the contract list to the backend writer
+  function writeContracts() {
+    var text = document.getElementById('contractsInput').value;
+
+    setResult('Writing contracts to scope table...');
+
+    google.script.run
+      .withSuccessHandler(setResult)
+      .withFailureHandler(setError)
+      .writeContracts(text);
+  }
+
+</script>
+</body>
+</html>
