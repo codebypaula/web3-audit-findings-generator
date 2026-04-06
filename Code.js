@@ -1001,8 +1001,8 @@ function writeContracts(contractsText) {
   try {
     var contracts = String(contractsText || '')
       .split('\n')
-      .map(function(c) { return c.trim(); })
-      .filter(function(c) { return c.length > 0; });
+      .map(function (c) { return c.trim(); })
+      .filter(function (c) { return c.length > 0; });
 
     if (!contracts.length) return 'No contracts found.';
 
@@ -1158,7 +1158,7 @@ function parseInlineCodeRanges(text) {
 function applyInlineCodeStyle(textElement, ranges) {
   if (!ranges || !ranges.length) return;
 
-  ranges.forEach(function(range) {
+  ranges.forEach(function (range) {
     if (range.start >= 0 && range.end >= range.start) {
       textElement.setFontFamily(range.start, range.end, 'Roboto Mono');
       textElement.setFontSize(range.start, range.end, 10);
