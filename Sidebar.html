@@ -262,6 +262,34 @@
       return findings;
     }
 
+    function findingsToStructuredText(findings) {
+      return findings.map(function (f) {
+        return [
+          '=== FINDING START ===',
+          'severity: ' + f.severity,
+          'id: ' + f.id,
+          'title: ' + f.title,
+          'description:',
+          f.description || '',
+          '',
+          'vulnerability_details:',
+          f.vulnerability_details || '',
+          '',
+          'proof_of_concept:',
+          f.proof_of_concept || '',
+          '',
+          'impact:',
+          f.impact || '',
+          '',
+          'recommendation:',
+          f.recommendation || '',
+          '',
+          'status: ' + f.status,
+          '=== FINDING END ==='
+        ].join('\n');
+      }).join('\n\n');
+    }
+
     function validateMarkdown() {
       setResult('Validating...');
       google.script.run.withSuccessHandler(setResult).withFailureHandler(setError).validateMarkdownText(document.getElementById('markdownInput').value);
@@ -270,15 +298,37 @@
     function writeMarkdown() {
       var raw = document.getElementById('markdownInput').value;
       setResult('Processing...');
+
       try {
-        var findings = parseMarkdownFindings(raw).map(f => {
-          ['description', 'vulnerability_details', 'proof_of_concept', 'impact', 'recommendation'].forEach(k => {
-            if (f[k]) f[k] = f[k].replace(/```([a-zA-Z0-9_-]*)\n?([\s\S]*?)```/g, (m, l, c) => highlightCode(c.trim(), l));
+        var findings = parseMarkdownFindings(raw).map(function (f) {
+          ['description', 'vulnerability_details', 'proof_of_concept', 'impact', 'recommendation'].forEach(function (k) {
+            if (f[k]) {
+              f[k] = f[k].replace(
+                /```([a-zA-Z0-9_-]*)\n?([\s\S]*?)```/g,
+                function (m, l, c) {
+                  return highlightCode(c.trim(), l);
+                }
+              );
+            }
           });
           return f;
         });
-        google.script.run.withSuccessHandler(setResult).withFailureHandler(setError).writeFindingsToReport(JSON.stringify(findings));
-      } catch (e) { setError(e); }
+
+        if (!findings.length) {
+          setResult('No findings found in markdown.');
+          return;
+        }
+
+        var structuredText = findingsToStructuredText(findings);
+
+        google.script.run
+          .withSuccessHandler(setResult)
+          .withFailureHandler(setError)
+          .writeFindingsToReport(structuredText);
+
+      } catch (e) {
+        setError(e);
+      }
     }
 
     function writeContracts() {
