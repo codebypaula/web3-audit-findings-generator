@@ -908,18 +908,23 @@ function writeFindingsToReport(inputText) {
           cursor++;
         }
 
-        const fullTitle = `[${finding.id}] ${finding.title}`;
+        const parsedTitle = parseInlineCodeRanges(`[${finding.id}] ${finding.title}`);
+        const fullTitle = parsedTitle.text;
+
         const titleParagraph = body.insertParagraph(cursor + 1, fullTitle)
           .setHeading(DocumentApp.ParagraphHeading.HEADING3);
 
         const titleText = titleParagraph.editAsText();
 
-        const titleParts = finding.title.split(' - ');
-        const functionPart = titleParts[0];
-        const restPart = titleParts.slice(1).join(' - ');
+        const titleParts = finding.title.split('`')[0].split(' - ');
+        const rawTitle = finding.title.replace(/`[^`]*`/g, match => match.slice(1, -1));
+        const rawTitleParts = rawTitle.split(' - ');
+        const functionPart = rawTitleParts[0];
+        const restPart = rawTitleParts.slice(1).join(' - ');
 
+        const idPrefix = `[${finding.id}] `;
         const startFunction = fullTitle.indexOf(functionPart);
-        const endFunction = startFunction + functionPart.length - 1;
+        const endFunction = startFunction !== -1 ? startFunction + functionPart.length - 1 : -1;
 
         const restSearch = restPart ? ' - ' + restPart : '';
         const startRest = restSearch ? fullTitle.indexOf(restSearch) : -1;
@@ -937,6 +942,17 @@ function writeFindingsToReport(inputText) {
           titleText.setBold(startRest, endRest, false);
         }
 
+        // Applies inline code highlight to backtick ranges in the title
+        parsedTitle.ranges.forEach(function (range) {
+          if (range.start >= 0 && range.end >= range.start) {
+            titleText.setFontFamily(range.start, range.end, 'Maven Pro');
+            titleText.setFontSize(range.start, range.end, 13);
+            titleText.setBackgroundColor(range.start, range.end, '#eeeeee');
+            titleText.setForegroundColor(range.start, range.end, '#000000');
+            titleText.setBold(range.start, range.end, false);
+          }
+        });
+
         cursor++;
 
         cursor = insertSimpleSectionAfter(body, cursor, 'Description', finding.description);
@@ -952,14 +968,6 @@ function writeFindingsToReport(inputText) {
     });
 
     const summaryResult = updateSeveritySummary(body, counts);
-
-    ensureMainHeadingsStartOnNewPage(body, [
-      'Centralisation',
-      'Conclusion',
-      'Our Methodology',
-      'Disclaimers',
-      'About Hashlock'
-    ]);
 
     return `Success: ${findings.length} findings inserted. ${summaryResult}`;
   } catch (e) {
