@@ -416,13 +416,19 @@ function isBlank(value) {
 function decodeHtmlEntities(str) {
   if (!str) return '';
 
-  return str
+  return String(str)
+    .replace(/&#x([0-9a-f]+);/gi, function (_, hex) {
+      return String.fromCharCode(parseInt(hex, 16));
+    })
+    .replace(/&#(\d+);/g, function (_, dec) {
+      return String.fromCharCode(parseInt(dec, 10));
+    })
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&')
     .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, ' ');
+    .replace(/&apos;/gi, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&');
 }
 
 // Converts RGB values to a hex color string
